@@ -21,6 +21,10 @@ foreach(required
     opus/include/opus.h
     stb_vorbis/stb_vorbis.c
     dr_mp3/dr_mp3.h
+    sdl3/include/SDL3/SDL.h
+    sdl3/CMakeLists.txt
+    sdl3_image/CMakeLists.txt
+    sdl3_image/include/SDL3_image/SDL_image.h
 )
     if(NOT EXISTS "${DEPS}/${required}")
         message(FATAL_ERROR "${DEPS}/${required} is missing; run: python tools/build/deps.py build/deps")
@@ -122,6 +126,18 @@ target_include_directories(
 )
 target_link_libraries(pc_png PUBLIC pc_zlib)
 target_compile_options(pc_png PRIVATE -w)
+
+# sdl3
+
+set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC ON CACHE BOOL "" FORCE)
+set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+set(SDL_TESTS OFF CACHE BOOL "" FORCE)
+set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+add_subdirectory("${DEPS}/sdl3" "${CMAKE_CURRENT_BINARY_DIR}/sdl3" EXCLUDE_FROM_ALL)
+add_subdirectory("${DEPS}/sdl3_image" "${CMAKE_CURRENT_BINARY_DIR}/sdl3_image" EXCLUDE_FROM_ALL)
 
 # lua
 file(GLOB LUA_SOURCES "${DEPS}/lua/*.c")
@@ -389,6 +405,20 @@ endforeach()
 file(GLOB PC_PLATFORM_SOURCES CONFIGURE_DEPENDS "${SOURCE_ROOT}/platform/pc/*.cpp")
 add_executable(MinecraftPC ${PC_PLATFORM_SOURCES} ${PC_SHARED_SOURCES})
 target_compile_options(MinecraftPC PRIVATE ${PC_HOOK_FLAG})
+target_link_libraries(MinecraftPC PRIVATE SDL3::SDL3 SDL3_image::SDL3_image)
+
+# Generate a header embedding the icon
+set(ICON_FILE "${SOURCE_ROOT}/platform/pc/icon/MinecraftPC.ico")
+set(GENERATED_ICON_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/PcGameIcon.cpp")
+add_custom_command(
+    OUTPUT "${GENERATED_ICON_SOURCE}"
+    DEPENDS "${ICON_FILE}" "${CMAKE_CURRENT_SOURCE_DIR}/embed-icon.cmake"
+    COMMAND ${CMAKE_COMMAND}
+        -DICON_FILE="${ICON_FILE}"
+        -DGENERATED_ICON_SOURCE="${GENERATED_ICON_SOURCE}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/embed-icon.cmake"
+)
+target_sources(MinecraftPC PRIVATE "${GENERATED_ICON_SOURCE}")
 
 # Generate a .cpp embedding the keyboard glyph PNGs
 file(GLOB PC_KEYBOARD_GLYPHS CONFIGURE_DEPENDS "${SOURCE_ROOT}/platform/pc/glyphs/keyboard/*.png")

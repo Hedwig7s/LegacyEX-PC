@@ -81,5 +81,21 @@
     "version": "1.5.2",
     "license": "BSD 3-Clause License",
     "tree_sha256": "3589c1b0556bea290fa33c68b48050e10751423b20d80742241d4aa4c1c12122"
+  },
+  "sdl3": {
+    "url": "https://github.com/libsdl-org/SDL/releases/download/release-3.4.20/SDL3-3.4.20.tar.gz",
+    "strip": "SDL3-3.4.20",
+    "dest": "sdl3",
+    "version": "3.4.20",
+    "license": "zlib License",
+    "tree_sha256": "1a4042e75a760249279e6af184b91027f3715e06574fb63d0f3bf2842692ccb8"
+  },
+  "sdl3_image": {
+    "url": "https://github.com/libsdl-org/SDL_image/archive/refs/tags/release-3.4.8.tar.gz",
+    "strip": "SDL_image-release-3.4.8",
+    "dest": "sdl3_image",
+    "version": "3.4.8",
+    "license": "zlib License",
+    "tree_sha256": "f47c20b40182b633601cc31eb12affe43dbafb88f8a2b583a06060067fce12e4"
   }
 }

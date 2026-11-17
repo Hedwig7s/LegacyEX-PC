@@ -4061,12 +4061,17 @@ void* PcLowHeapAlloc(size_t size, size_t alignment)
     return mspace_memalign(s_lowHeap, alignment, size);
 }
 
+void PcLowHeapFree(void* mem)
+{
+    mspace_free(s_lowHeap, mem);
+}
+
 static int InLowHeap(void* mem)
 {
     return (char*)mem >= gLowHeapStart && (char*)mem < gLowHeapEnd;
 }
 #endif
-
+#if !defined(PC_USE_LIBC_ALLOCATOR)
 void* malloc(size_t size)
 {
     return dlmalloc(size);
@@ -4102,7 +4107,7 @@ void* memalign(size_t alignment, size_t size)
 {
     return dlmemalign(alignment, size);
 }
-
+#endif
 #ifdef __cplusplus
 }
 #endif

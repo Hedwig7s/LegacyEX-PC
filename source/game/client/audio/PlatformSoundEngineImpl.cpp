@@ -42,6 +42,7 @@ static char szSoundPath[] = "WiiU/Sound/";
 
 #if defined(MINECRAFT_PC) && __SIZEOF_POINTER__ == 8
 extern "C" void* PcLowHeapAlloc(size_t size, size_t alignment);
+extern "C" void* PcLowHeapFree(void* mem);
 #endif
 
 extern "C" void* platform_alloc(unsigned int uiSize)
@@ -55,7 +56,11 @@ extern "C" void* platform_alloc(unsigned int uiSize)
 
 extern "C" void platform_free(void* pBlock)
 {
+#if defined(MINECRAFT_PC) && __SIZEOF_POINTER__ == 8
+    PcLowHeapFree(pBlock);
+#else
     MEMFreeToDefaultHeap(pBlock);
+#endif
 }
 
 PlatformSoundEngineImpl::PlatformSoundEngineImpl()

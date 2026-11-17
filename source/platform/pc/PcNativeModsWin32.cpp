@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "platform/pc/PcNativeMods.hpp"
 #include "platform/pc/PcFunctionHooks.hpp"
 #include "platform/pc/PcModHooks.hpp"
@@ -129,7 +130,8 @@ void Log(const char* msg)
 void NotBoth(const char* what, const char* name)
 {
     printf("[pc] native %s: %s \"%s\" not added: only a mod with \"side\": \"both\" in its mod.json can add "
-           "one (every player's game needs it)\n", PcNativeModsCurrentId(), what, name != 0 ? name : "");
+           "one (every player's game needs it)\n",
+           PcNativeModsCurrentId(), what, name != 0 ? name : "");
     fflush(stdout);
 }
 
@@ -268,10 +270,10 @@ void SendChar(unsigned int character)
 
 void SetPad(const PcNativePad* pad)
 {
-    static const unsigned int buttonMap[16] = {VPAD_BUTTON_A,      VPAD_BUTTON_B,       VPAD_BUTTON_X,    VPAD_BUTTON_Y,
-                                              VPAD_BUTTON_L,      VPAD_BUTTON_R,       VPAD_BUTTON_ZL,   VPAD_BUTTON_ZR,
-                                              VPAD_BUTTON_STICK_L, VPAD_BUTTON_STICK_R, VPAD_BUTTON_PLUS, VPAD_BUTTON_MINUS,
-                                              VPAD_BUTTON_UP,     VPAD_BUTTON_DOWN,    VPAD_BUTTON_LEFT, VPAD_BUTTON_RIGHT};
+    static const unsigned int buttonMap[16] = {
+        VPAD_BUTTON_A,  VPAD_BUTTON_B,    VPAD_BUTTON_X,       VPAD_BUTTON_Y,       VPAD_BUTTON_L,    VPAD_BUTTON_R,
+        VPAD_BUTTON_ZL, VPAD_BUTTON_ZR,   VPAD_BUTTON_STICK_L, VPAD_BUTTON_STICK_R, VPAD_BUTTON_PLUS, VPAD_BUTTON_MINUS,
+        VPAD_BUTTON_UP, VPAD_BUTTON_DOWN, VPAD_BUTTON_LEFT,    VPAD_BUTTON_RIGHT};
     PcInputModPad st;
     memset(&st, 0, sizeof(st));
     if (pad != 0)
@@ -609,7 +611,7 @@ void LoadSymbols()
     const long strAt = (long)(header.PointerToSymbolTable + table.size());
     std::vector<char> strings;
     bool ok = ReadAt(fp, (long)header.PointerToSymbolTable, &table[0], table.size())
-                && ReadAt(fp, strAt, &strSize, sizeof(strSize)) && strSize >= 4;
+              && ReadAt(fp, strAt, &strSize, sizeof(strSize)) && strSize >= 4;
     if (ok)
     {
         strings.resize(strSize + 1, 0);
@@ -671,7 +673,8 @@ void LoadPlainNames()
     plainNames = new std::vector<PlainName>();
     if (gameSymbols == 0)
         LoadSymbols();
-    for (boost::unordered_map<std::string, void*>::const_iterator it = gameSymbols->begin(); it != gameSymbols->end(); ++it)
+    for (boost::unordered_map<std::string, void*>::const_iterator it = gameSymbols->begin(); it != gameSymbols->end();
+         ++it)
     {
         const char* sym = it->first.c_str();
         if (sizeof(void*) == 4 && sym[0] == '_')
@@ -714,8 +717,7 @@ bool ResolveImports(HMODULE dll, std::string* err)
     if (dir.Size == 0)
         return true;
     unsigned int missing = 0;
-    for (IMAGE_IMPORT_DESCRIPTOR* imp = At<IMAGE_IMPORT_DESCRIPTOR>(dll, dir.VirtualAddress);
-         imp->Name != 0; ++imp)
+    for (IMAGE_IMPORT_DESCRIPTOR* imp = At<IMAGE_IMPORT_DESCRIPTOR>(dll, dir.VirtualAddress); imp->Name != 0; ++imp)
     {
         const char* libName = At<const char>(dll, imp->Name);
         const bool game = _stricmp(libName, "pcgame.dll") == 0;
@@ -725,8 +727,8 @@ bool ResolveImports(HMODULE dll, std::string* err)
             *err = std::string("needs ") + libName + ", which is not there";
             return false;
         }
-        IMAGE_THUNK_DATA* lookup =
-            At<IMAGE_THUNK_DATA>(dll, imp->OriginalFirstThunk != 0 ? imp->OriginalFirstThunk : imp->FirstThunk);
+        IMAGE_THUNK_DATA* lookup = At<IMAGE_THUNK_DATA>(dll, imp->OriginalFirstThunk != 0 ? imp->OriginalFirstThunk
+                                                                                          : imp->FirstThunk);
         IMAGE_THUNK_DATA* iat = At<IMAGE_THUNK_DATA>(dll, imp->FirstThunk);
         for (; lookup->u1.AddressOfData != 0; ++lookup, ++iat)
         {
@@ -776,8 +778,7 @@ bool StartModule(HMODULE dll)
     }
     if (nt->OptionalHeader.AddressOfEntryPoint == 0)
         return true;
-    EntryFn entry =
-        reinterpret_cast<EntryFn>(reinterpret_cast<char*>(dll) + nt->OptionalHeader.AddressOfEntryPoint);
+    EntryFn entry = reinterpret_cast<EntryFn>(reinterpret_cast<char*>(dll) + nt->OptionalHeader.AddressOfEntryPoint);
     return entry(reinterpret_cast<HINSTANCE>(dll), DLL_PROCESS_ATTACH, 0) != FALSE;
 }
 
@@ -810,8 +811,7 @@ void StartMod(const PcMod& m)
         return;
     }
     rec.gameBuild[sizeof(rec.gameBuild) - 1] = 0;
-    if (memcmp(rec.magic, "PCNATIVE", 8) != 0 || rec.abi != PC_NATIVE_ABI
-        || rec.pointerBits != sizeof(void*) * 8)
+    if (memcmp(rec.magic, "PCNATIVE", 8) != 0 || rec.abi != PC_NATIVE_ABI || rec.pointerBits != sizeof(void*) * 8)
     {
         printf("[pc] native %s: %s was built for game version %s (%u-bit), and this game is %s (%u-bit); "
                "not loaded: it must be built again for this game\n",
@@ -826,16 +826,16 @@ void StartMod(const PcMod& m)
         int used = 0;
         if (list.empty() || !AbiMatches(list, &bad, &used))
         {
-            printf("[pc] native %s: %s was built for game version %s, and this game is %s", m.id.c_str(),
-                   DLL_NAME, rec.gameBuild, kPcContentVersion);
+            printf("[pc] native %s: %s was built for game version %s, and this game is %s", m.id.c_str(), DLL_NAME,
+                   rec.gameBuild, kPcContentVersion);
             if (!bad.empty())
                 printf(" (changed since: %s)", bad.c_str());
             printf("; not loaded: it must be built again for this game\n");
             return;
         }
         printf("[pc] native %s: %s was built for game version %s; the %d game headers it uses are the same "
-               "in this game (%s), so it is loaded\n", m.id.c_str(), DLL_NAME, rec.gameBuild, used,
-               kPcContentVersion);
+               "in this game (%s), so it is loaded\n",
+               m.id.c_str(), DLL_NAME, rec.gameBuild, used, kPcContentVersion);
     }
 
     NativeMod* nm = new NativeMod();
@@ -1191,3 +1191,4 @@ bool PcNativeModsHudHidden(int part)
             return true;
     return false;
 }
+#endif

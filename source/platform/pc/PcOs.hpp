@@ -36,8 +36,11 @@ void PcOsSetCurrentThreadName(const char* name);
 uintptr_t PcOsProgramBase();
 clockid_t PcOsConditionClock();
 
+#ifdef _WIN32
 const size_t kPcOsLockBytes = 24;
-
+#else
+const size_t kPcOsLockBytes = 40;
+#endif
 void PcOsLockAcquire(void* lock);
 bool PcOsLockTryAcquire(void* lock);
 void PcOsLockRelease(void* lock);

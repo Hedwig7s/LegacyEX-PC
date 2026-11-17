@@ -1,5 +1,3 @@
-#ifdef _WIN32
-
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -66,7 +64,8 @@ extern "C" void PcUnreachableNex6()
     ReportUnreachable("nn::nex::RefCountedObject::ReleaseRef");
 }
 
-extern "C" void PcUnreachableNex7() asm(PC_LABEL_PREFIX "_ZN2nn3nex18JobConnectEndPoint19ReportConnectResultENS0_7qResultE");
+extern "C" void PcUnreachableNex7() asm(PC_LABEL_PREFIX
+                                        "_ZN2nn3nex18JobConnectEndPoint19ReportConnectResultENS0_7qResultE");
 
 extern "C" void PcUnreachableNex7()
 {
@@ -104,13 +103,14 @@ extern "C" void PcUnreachableNex11()
 extern "C" unsigned char PcUnreachableNexInstanceTable[64] asm(PC_LABEL_PREFIX "_ZN2nn3nex15g_instanceTableE");
 unsigned char PcUnreachableNexInstanceTable[64];
 
-extern "C" unsigned char PcUnreachableNexUsingInstantiationContext[64] asm(PC_LABEL_PREFIX "_ZN2nn3nex27g_usingInstantiationContextE");
+extern "C" unsigned char PcUnreachableNexUsingInstantiationContext[64] asm(PC_LABEL_PREFIX
+                                                                           "_ZN2nn3nex27g_usingInstantiationContextE");
 unsigned char PcUnreachableNexUsingInstantiationContext[64];
 
-extern "C" unsigned char PcUnreachableNexInstantiationContextVariable[64] asm(PC_LABEL_PREFIX "_ZN2nn3nex30g_instantiationContextVariableE");
+extern "C" unsigned char PcUnreachableNexInstantiationContextVariable[64] asm(
+    PC_LABEL_PREFIX "_ZN2nn3nex30g_instantiationContextVariableE");
 unsigned char PcUnreachableNexInstantiationContextVariable[64];
 
-extern "C" unsigned char PcUnreachableNexBadEventsInstance[64] asm(PC_LABEL_PREFIX "_ZN2nn3nex9BadEvents11s_pInstanceE");
+extern "C" unsigned char PcUnreachableNexBadEventsInstance[64] asm(PC_LABEL_PREFIX
+                                                                   "_ZN2nn3nex9BadEvents11s_pInstanceE");
 unsigned char PcUnreachableNexBadEventsInstance[64];
-
-#endif

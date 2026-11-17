@@ -98,8 +98,7 @@ LONG WINAPI ReportCrash(EXCEPTION_POINTERS* ep)
         {
             void* handlerData = 0;
             DWORD64 establisherFrame = 0;
-            RtlVirtualUnwind(UNW_FLAG_NHANDLER, base, uw.Rip, fn, &uw, &handlerData,
-                             &establisherFrame, 0);
+            RtlVirtualUnwind(UNW_FLAG_NHANDLER, base, uw.Rip, fn, &uw, &handlerData, &establisherFrame, 0);
         }
         if (uw.Rip == 0)
             break;
@@ -138,8 +137,7 @@ LONG WINAPI ReportFatalFirstChance(EXCEPTION_POINTERS* ep)
 void ReportOutOfMemory()
 {
     Write("[pc] crash: allocation failed; game heap %lu of %lu MB used\n",
-          (unsigned long)((gHeapTop - gHeapStart) >> 20),
-          (unsigned long)((gHeapEnd - gHeapStart) >> 20));
+          (unsigned long)((gHeapTop - gHeapStart) >> 20), (unsigned long)((gHeapEnd - gHeapStart) >> 20));
     __builtin_trap();
 }
 
@@ -170,18 +168,6 @@ void PcInstallCrashHandler()
     std::set_terminate(ReportTerminate);
     signal(SIGABRT, ReportAbort);
     PcCrashHandlerPrepareThread();
-}
-
-#else
-
-#include "platform/pc/PcCrashHandler.hpp"
-
-void PcCrashHandlerPrepareThread()
-{
-}
-
-void PcInstallCrashHandler()
-{
 }
 
 #endif

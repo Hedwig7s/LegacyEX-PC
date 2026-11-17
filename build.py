@@ -93,6 +93,10 @@ def main():
         cmake_source_dir = "tools/pc"
         toolchain_file = os.path.join(os.getcwd(), "tools/pc/mingw-x86_64.cmake")
         build_dir = args.build_dir if args.build_dir else "build/pc64"
+    elif target == "linux64":
+        cmake_source_dir = "tools/pc"
+        toolchain_file = None
+        build_dir = args.build_dir if args.build_dir else "build/linux64"
     else:
         print(f"ERROR: Unsupported target '{target}'.", file=sys.stderr)
         print("Add its CMake configuration to the target definitions in the script.", file=sys.stderr)

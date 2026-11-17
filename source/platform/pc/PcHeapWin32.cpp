@@ -1,10 +1,12 @@
 #ifdef _WIN32
+#ifdef _WIN32
 
 #include <windows.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "PcHeap.hpp"
 
 char* gHeapStart = 0;
 char* gHeapEnd = 0;
@@ -12,7 +14,6 @@ char* gHeapTop = 0;
 #if __SIZEOF_POINTER__ == 8
 char* gLowHeapStart = 0;
 char* gLowHeapEnd = 0;
-extern "C" void PcCreateLowHeap(void* base, size_t size);
 #endif
 
 namespace
@@ -20,7 +21,7 @@ namespace
 const size_t kMegabyte = static_cast<size_t>(1024) * 1024;
 #if __SIZEOF_POINTER__ == 8
 const size_t kArenaSizes[] = {16384 * kMegabyte, 8192 * kMegabyte, 4096 * kMegabyte, 2048 * kMegabyte,
-                              1536 * kMegabyte, 1024 * kMegabyte, 512 * kMegabyte, 384 * kMegabyte};
+                              1536 * kMegabyte,  1024 * kMegabyte, 512 * kMegabyte,  384 * kMegabyte};
 const DWORD kArenaPlacement = MEM_TOP_DOWN;
 const size_t kLowHeapSize = 256 * kMegabyte;
 const size_t kLowHeapLimit = static_cast<size_t>(4096) * kMegabyte;
@@ -113,9 +114,11 @@ void InitialiseLowHeap()
         char* regionEnd = static_cast<char*>(info.BaseAddress) + info.RegionSize;
         if (info.State == MEM_FREE)
         {
-            char* start = reinterpret_cast<char*>((reinterpret_cast<size_t>(address) + 0xffff) & ~static_cast<size_t>(0xffff));
+            char* start = reinterpret_cast<char*>((reinterpret_cast<size_t>(address) + 0xffff)
+                                                  & ~static_cast<size_t>(0xffff));
             if (start + kLowHeapSize <= regionEnd)
-                gLowHeapStart = static_cast<char*>(VirtualAlloc(start, kLowHeapSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+                gLowHeapStart = static_cast<char*>(
+                    VirtualAlloc(start, kLowHeapSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
         }
         if (regionEnd <= address)
             break;
@@ -161,7 +164,8 @@ void InitialiseArena()
         StartupLog("heap: could not reserve even 384 MB of address space; stopping", true);
         abort();
     }
-    snprintf(line, sizeof(line), "heap: %u MB %s at %p%s", static_cast<unsigned int>((gHeapEnd - gHeapStart) / kMegabyte),
+    snprintf(line, sizeof(line), "heap: %u MB %s at %p%s",
+             static_cast<unsigned int>((gHeapEnd - gHeapStart) / kMegabyte),
              commitAll ? "reserved and committed" : "reserved", static_cast<void*>(gHeapStart),
              configured ? " (heap.txt or MCLCE_HEAP)" : "");
     StartupLog(line, true);
@@ -227,7 +231,8 @@ extern "C" int PcHeapCommit(char* top)
     return top <= s_committedEnd;
 }
 
-extern "C" __attribute__((section(".CRT$XLB"), used)) const PIMAGE_TLS_CALLBACK PcHeapTlsCallback =
-    InitialiseArenaAtProcessAttach;
+extern "C" __attribute__((section(".CRT$XLB"), used))
+const PIMAGE_TLS_CALLBACK PcHeapTlsCallback = InitialiseArenaAtProcessAttach;
 
+#endif
 #endif

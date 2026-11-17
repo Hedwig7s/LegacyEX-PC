@@ -4,9 +4,8 @@
 #include "platform/pc/PcCrashHandler.hpp"
 #include "platform/pc/PcDebugOverlay.hpp"
 #include "platform/pc/PcDisplay.hpp"
+#include "platform/pc/PcHeap.hpp"
 #include "platform/pc/PcInput.hpp"
-#include "platform/pc/PcMods.hpp"
-#include "platform/pc/PcNativeMods.hpp"
 #include "platform/pc/PcSettings.hpp"
 #include "platform/pc/PcDedicated.hpp"
 #include "platform/pc/PcNetworkSession.hpp"
@@ -23,6 +22,9 @@
 #include "platform/pc/PcProfiler.hpp"
 #include "platform/pc/PcScripts.hpp"
 #include "platform/pc/PcWorldLauncher.hpp"
+
+#include "platform/pc/PcMods.hpp"
+#include "platform/pc/PcNativeMods.hpp"
 
 #include "game/client/audio/SoundEngine.hpp"
 #include "game/client/render/Renderer.hpp"
@@ -80,12 +82,6 @@ extern CInput* g_pInput;
 extern C4JStorage* gStorage;
 extern C_4JProfile* gProfile;
 extern CConsoleMinecraftApp gApp;
-
-#ifdef _WIN32
-extern "C" void PcStartupLog(const char* text);
-extern char* gHeapStart;
-extern char* gHeapEnd;
-#endif
 
 namespace
 {
@@ -156,13 +152,14 @@ struct KeyName
     int wheel;
 };
 
-const KeyName kKeyNames[] = {{"space", 0x20, false},  {"enter", 0x0D, false},    {"escape", 0x1B, false},
-                             {"backspace", 0x08, false}, {"tab", 0x09, false},   {"shift", 0x10, false},
-                             {"left", 0x25, false},   {"up", 0x26, false},       {"right", 0x27, false},
-                             {"down", 0x28, false},   {"f5", 0x74, false},       {"f2", 0x71, false},       {"f6", 0x75, false},       {"f7", 0x76, false},       {"f8", 0x77, false},       {"f3", 0x72, false},
-                             {"control", 0x11, false}, {"pageup", 0x21, false}, {"pagedown", 0x22, false}, {"mouse1", 0, true},
-                             {"mouse2", 1, true},     {"wheelup", 0, false, 1},  {"wheeldown", 0, false, -1},
-                             {"home", 0x24, false},   {"end", 0x23, false},      {"delete", 0x2E, false}};
+const KeyName kKeyNames[] = {
+    {"space", 0x20, false},   {"enter", 0x0D, false},   {"escape", 0x1B, false},     {"backspace", 0x08, false},
+    {"tab", 0x09, false},     {"shift", 0x10, false},   {"left", 0x25, false},       {"up", 0x26, false},
+    {"right", 0x27, false},   {"down", 0x28, false},    {"f5", 0x74, false},         {"f2", 0x71, false},
+    {"f6", 0x75, false},      {"f7", 0x76, false},      {"f8", 0x77, false},         {"f3", 0x72, false},
+    {"control", 0x11, false}, {"pageup", 0x21, false},  {"pagedown", 0x22, false},   {"mouse1", 0, true},
+    {"mouse2", 1, true},      {"wheelup", 0, false, 1}, {"wheeldown", 0, false, -1}, {"home", 0x24, false},
+    {"end", 0x23, false},     {"delete", 0x2E, false}};
 
 bool ParseScriptedKey(const char* s, ScriptedKey* key)
 {
@@ -206,12 +203,11 @@ bool ParseScriptedPad(const char* s, ScriptedPad* pad)
     {
         const char* name;
         unsigned int buttons;
-    } kPadNames[] = {{"south", ePcOsGamepad_South}, {"east", ePcOsGamepad_East},
-                     {"west", ePcOsGamepad_West},   {"north", ePcOsGamepad_North},
-                     {"lb", ePcOsGamepad_LeftShoulder}, {"rb", ePcOsGamepad_RightShoulder},
-                     {"start", ePcOsGamepad_Start}, {"back", ePcOsGamepad_Back},
-                     {"up", ePcOsGamepad_Up},       {"down", ePcOsGamepad_Down},
-                     {"left", ePcOsGamepad_Left},   {"right", ePcOsGamepad_Right}};
+    } kPadNames[] = {
+        {"south", ePcOsGamepad_South}, {"east", ePcOsGamepad_East},       {"west", ePcOsGamepad_West},
+        {"north", ePcOsGamepad_North}, {"lb", ePcOsGamepad_LeftShoulder}, {"rb", ePcOsGamepad_RightShoulder},
+        {"start", ePcOsGamepad_Start}, {"back", ePcOsGamepad_Back},       {"up", ePcOsGamepad_Up},
+        {"down", ePcOsGamepad_Down},   {"left", ePcOsGamepad_Left},       {"right", ePcOsGamepad_Right}};
     char name[32];
     if (sscanf(s, "%31[^:]:%lf:%lf", name, &pad->start, &pad->end) != 3)
         return false;
@@ -648,8 +644,7 @@ void Boot(bool* noSpaceForSaveQuota)
 
     static unsigned int s_storageProfileDefaults[5];
     gStorage->InitialiseGenericData();
-    gStorage->InitialiseProfileData(0x22, 5, 4, s_storageProfileDefaults, 0x1e60,
-                                    &gApp.mGameDefinedDataChangedBitmask);
+    gStorage->InitialiseProfileData(0x22, 5, 4, s_storageProfileDefaults, 0x1e60, &gApp.mGameDefinedDataChangedBitmask);
     gStorage->SetDefaultOptionsCallback(CMinecraftApp::DefaultOptionsCallback, &gApp);
     gStorage->SetOptionsDataCallback(CMinecraftApp::OptionsDataCallback, &gApp);
     gStorage->SetOldProfileVersionCallback(GameSettings::OldProfileVersionCallback, &gApp);
@@ -694,7 +689,8 @@ void ApplyGameKeys(Minecraft* mc, int pad)
         p->mInventory->m_selected = slot;
 
     if (PcInputConsumeDebugCameraKey() && PcDebugMode())
-        gConsoleUIController.NavigateToScene(pad, EUIScene_DebugSetCamera, NULL, EUILayer_Scene, EUIGroup_PlayerDefault);
+        gConsoleUIController.NavigateToScene(pad, EUIScene_DebugSetCamera, NULL, EUILayer_Scene,
+                                             EUIGroup_PlayerDefault);
     if (PcInputConsumeDebugFillAreaKey() && PcDebugMode())
         gConsoleUIController.NavigateToScene(pad, EUIScene_DebugFillArea, NULL, EUILayer_Scene, EUIGroup_PlayerDefault);
     if (PcInputConsumeDebugSchematicKey() && PcDebugMode())
@@ -705,8 +701,8 @@ void ApplyGameKeys(Minecraft* mc, int pad)
     if (PcDebugFreeCrafting() && (p->mDebugOptions & kFreeCrafting) == 0 && mc->mGameModes[pad] != 0)
         mc->mGameModes[pad]->handleDebugOptions(p->mDebugOptions | kFreeCrafting, p);
 
-    if (PcInputSprintHeld() && !p->isSprinting() && (p->mOnGround || p->isInWater())
-        && !p->isSneaking() && !p->isUsingItem()
+    if (PcInputSprintHeld() && !p->isSprinting() && (p->mOnGround || p->isInWater()) && !p->isSneaking()
+        && !p->isUsingItem()
         && (p->getFoodData()->getFoodLevel() > FoodConstants::SprintLevel() || p->mAbilities.mMayfly
             || p->isAllowedToFly()))
         p->setSprinting(true);
@@ -748,7 +744,8 @@ void ApplyMouseLook(Minecraft* minecraft)
     if (GameSettings::GetGameSettings(pad, eGameSetting_InvertLook) != 0)
         pitch = -pitch;
     MultiPlayerGameMode* gameMode = minecraft->mGameModes[pad];
-    if (!gameMode->isInputAllowed(EControllerActions_LookLeft) && !gameMode->isInputAllowed(EControllerActions_LookRight))
+    if (!gameMode->isInputAllowed(EControllerActions_LookLeft)
+        && !gameMode->isInputAllowed(EControllerActions_LookRight))
         yaw = 0.0f;
     if (!gameMode->isInputAllowed(EControllerActions_LookUp) && !gameMode->isInputAllowed(EControllerActions_LookDown))
         pitch = 0.0f;
@@ -860,22 +857,19 @@ int main(int argc, char** argv)
         terminal = terminal || strcmp(argv[i], "--terminal") == 0;
         dedicated = dedicated || strcmp(argv[i], "--dedicated") == 0;
     }
-#ifdef _WIN32
     PcStartupLog("main: started");
-#endif
     PcOsPrepareOutput(terminal, dedicated);
-#ifdef _WIN32
     PcStartupLog("main: output ready");
-#endif
     PcInstallCrashHandler();
     PcOsUsePreciseTimers();
     LaunchOptions options;
     if (!ParseArguments(argc, argv, &options))
     {
-        printf("usage: %s [--content DIR] [--save DIR] [--mods DIR | --no-mods] [--no-native-mods] [--name NAME] [--identity DIR] [--world NAME [--seed N] [--host]]"
-               " [--join [HOST]] [--leave SECONDS] [--log-input] [--accept-eula] [--seconds N] [--hidden | --headless] [--screenshot FILE]"
-               " [--profile [MS]] [--profile-gpu] [--audio-capture FILE] [--mic-file WAV] [--mic-test] [--voice-chat]\n",
-               argv[0]);
+        printf(
+            "usage: %s [--content DIR] [--save DIR] [--mods DIR | --no-mods] [--no-native-mods] [--name NAME] [--identity DIR] [--world NAME [--seed N] [--host]]"
+            " [--join [HOST]] [--leave SECONDS] [--log-input] [--accept-eula] [--seconds N] [--hidden | --headless] [--screenshot FILE]"
+            " [--profile [MS]] [--profile-gpu] [--audio-capture FILE] [--mic-file WAV] [--mic-test] [--voice-chat]\n",
+            argv[0]);
         return 2;
     }
     if (!PcPrepareSaveRoot())
@@ -908,9 +902,7 @@ int main(int argc, char** argv)
         gProfile = new (calloc(1, sizeof(CProfile))) CProfile();
 
     printf("[pc] booting\n");
-#ifdef _WIN32
     printf("[pc] heap: %u MB reserved\n", static_cast<unsigned int>((gHeapEnd - gHeapStart) >> 20));
-#endif
     fflush(stdout);
     bool noSpaceForSaveQuota = false;
     Boot(&noSpaceForSaveQuota);
@@ -919,9 +911,7 @@ int main(int argc, char** argv)
     PcNativeModsLoad();
     Minecraft* minecraft = Minecraft::GetInstance();
     printf("[pc] boot complete; entering main loop\n");
-#ifdef _WIN32
     PcStartupLog("main: boot complete");
-#endif
     fflush(stdout);
 
     unsigned long long start = PcOsMonotonicNanoseconds();
@@ -948,12 +938,13 @@ int main(int argc, char** argv)
         PcNetworkSession::TickRefusalMessage();
         PcVoiceTick();
         PcOnlineConnectionTick();
-    PcMultiplayerMenuTick();
+        PcMultiplayerMenuTick();
         PIXEndNamedEvent();
         quitRequested = quitRequested || PcWorldLauncherQuitRequested() || PcDedicatedStopRequested();
         ++frames;
         unsigned long long elapsed = PcOsMonotonicNanoseconds() - start;
-        bool timeUp = options.seconds >= 0 && elapsed >= static_cast<unsigned long long>(options.seconds) * 1000000000ULL;
+        bool timeUp = options.seconds >= 0
+                      && elapsed >= static_cast<unsigned long long>(options.seconds) * 1000000000ULL;
         if (!stopping && (timeUp || quitRequested))
         {
             stopping = true;

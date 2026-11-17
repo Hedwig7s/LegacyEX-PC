@@ -23,7 +23,8 @@ unsigned long long PcOsRealTimeMilliseconds()
 {
     struct timespec now;
     clock_gettime(CLOCK_REALTIME, &now);
-    return static_cast<unsigned long long>(now.tv_sec) * 1000ULL + static_cast<unsigned long long>(now.tv_nsec / 1000000L);
+    return static_cast<unsigned long long>(now.tv_sec) * 1000ULL
+           + static_cast<unsigned long long>(now.tv_nsec / 1000000L);
 }
 
 void PcOsCalendarFromUnixSeconds(long long seconds, bool local, PcOsCalendar* calendar)

@@ -583,8 +583,9 @@ bool DLCManager::processDLCDataFile(unsigned int& numItemsAdded, unsigned char* 
         {
             unsigned int numChildItemsAdded = 0;
 #ifdef MINECRAFT_PC
-            bool bLoaded = *pItemData >= 3 && processDLCDataFile(numChildItemsAdded, (unsigned char*)pItemData,
-                                                                 pItemHeader[0], pTexturePack, false);
+            bool bLoaded = *pItemData >= 3
+                           && processDLCDataFile(numChildItemsAdded, (unsigned char*)pItemData, pItemHeader[0],
+                                                 pTexturePack, false);
 #else
             bool bLoaded = processDLCDataFile(numChildItemsAdded, (unsigned char*)pItemData, pItemHeader[0],
                                               pTexturePack, false);
@@ -618,8 +619,9 @@ bool DLCManager::processDLCDataFile(unsigned int& numItemsAdded, unsigned char* 
         {
             unsigned int numChildItemsAdded = 0;
 #ifdef MINECRAFT_PC
-            bool bLoaded = *pItemData >= 3 && processDLCDataFile(numChildItemsAdded, (unsigned char*)pItemData,
-                                                                 pItemHeader[0], pChildPack, false);
+            bool bLoaded = *pItemData >= 3
+                           && processDLCDataFile(numChildItemsAdded, (unsigned char*)pItemData, pItemHeader[0],
+                                                 pChildPack, false);
 #else
             bool bLoaded = processDLCDataFile(numChildItemsAdded, (unsigned char*)pItemData, pItemHeader[0], pChildPack,
                                               false);

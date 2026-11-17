@@ -1,6 +1,20 @@
 cmake_minimum_required(VERSION 3.20)
 project(MinecraftPC C CXX)
 
+option(PC_USE_CCACHE "Use ccache to speed up recompilation" ON)
+
+if(PC_USE_CCACHE)
+    find_program(CCACHE_PROGRAM ccache)
+
+    if(CCACHE_PROGRAM)
+        message(STATUS "Using ccache: ${CCACHE_PROGRAM}")
+        set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+    else()
+        message(STATUS "ccache not found; compiling without it")
+    endif()
+endif()
+
 # Project configuration
 option(PC_WUT_TYPES "Take Cafe OS type declarations from wut's headers until the PC compat layer replaces them" ON)
 option(PC_POINTER_WARNINGS "Report only conversions that cut a pointer or a 64-bit value to 32 bits (finds 64-bit build bugs)" OFF)
@@ -206,6 +220,16 @@ target_include_directories(
 )
 target_include_directories(pc_game_flags SYSTEM INTERFACE "${DEPS}/boost")
 
+if(NOT WIN32)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/unix-size-fixes.cmake")
+    pc_unix_size_fixes_apply()
+    add_compile_options("-fmacro-prefix-map=${PC_UNIX_FIX_DIR}/=")
+    target_include_directories(pc_game_flags BEFORE INTERFACE ${PC_UNIX_FIX_INCLUDE_FIRST})
+    target_include_directories(pc_game_flags INTERFACE ${PC_UNIX_FIX_INCLUDE_LAST})
+
+
+endif()
+
 if(WIN32)
     target_include_directories(
         pc_game_flags
@@ -223,7 +247,7 @@ if(PC_WUT_TYPES)
 
     if(PC_64BIT)
         # These headers need patching for 64-bit, so they are copied/edited instead of symlinked
-        list(REMOVE_ITEM WUT_ENTRIES wut_structsize.h coreinit)
+        list(REMOVE_ITEM WUT_ENTRIES wut_structsize.h wut.h coreinit)
         file(READ "${DEPS}/wut/include/wut_structsize.h" WUT_TEXT)
         # Disable the static_assert struct size checks (sizes differ on 64-bit)
         string(REPLACE
@@ -233,6 +257,11 @@ if(PC_WUT_TYPES)
             "${WUT_TEXT}"
         )
         file(WRITE "${WUT_TYPES_DIR}/wut_structsize.h" "${WUT_TEXT}")
+        # Change wut_structsize.h include from quotes to angle brackets so it resolves the patched copy
+        file(READ "${DEPS}/wut/include/wut.h" WUT_H_TEXT)
+        string(REPLACE "#include \"wut_structsize.h\"" "#include <wut_structsize.h>" WUT_H_TEXT "${WUT_H_TEXT}")
+        file(REMOVE "${WUT_TYPES_DIR}/wut.h")
+        file(WRITE "${WUT_TYPES_DIR}/wut.h" "${WUT_H_TEXT}")
 
         file(MAKE_DIRECTORY "${WUT_TYPES_DIR}/coreinit")
         file(GLOB COREINIT_ENTRIES
@@ -281,11 +310,22 @@ target_compile_definitions(
     BOOST_NO_EXCEPTIONS
     __BASE__=__FILE_NAME__
 )
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(PC_NARROWING_FLAG -Wno-narrowing)
+else()
+    set(PC_NARROWING_FLAG -Wno-c++11-narrowing)
+endif()
+
+if(WIN32)
+    set(PC_WCHAR_FLAG -fshort-wchar)
+else()
+    set(PC_WCHAR_FLAG "")
+endif()
 # These flags must match between the game and native mods (they change ABI)
 target_compile_options(
     pc_game_flags
     INTERFACE
-    $<$<COMPILE_LANGUAGE:CXX>:-fshort-wchar -frtti -fno-exceptions -fno-threadsafe-statics -Wno-c++11-narrowing
+    $<$<COMPILE_LANGUAGE:CXX>:-frtti -fno-exceptions -fno-threadsafe-statics ${PC_NARROWING_FLAG} ${PC_WCHAR_FLAG}
     -fno-delete-null-pointer-checks>
 )
 
@@ -327,6 +367,11 @@ endif()
 # mcgame
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS "${SOURCE_ROOT}/game/*.cpp")
 list(REMOVE_ITEM GAME_SOURCES "${SOURCE_ROOT}/game/core/PIXNamedEvents.cpp")
+list(REMOVE_ITEM GAME_SOURCES "${SOURCE_ROOT}/game/core/NS_JobConnectEndPoint_CPP.cpp")
+
+if(NOT WIN32)
+    pc_unix_size_fixes_use(GAME_SOURCES)
+endif()
 
 add_library(mcgame STATIC ${GAME_SOURCES})
 target_link_libraries(mcgame PUBLIC pc_game_flags pc_png pc_zlib)
@@ -401,8 +446,13 @@ foreach(unit ${PC_SHARED_UNITS})
     list(APPEND PC_SHARED_SOURCES "${SOURCE_ROOT}/${unit}.cpp")
 endforeach()
 
+if(NOT WIN32)
+    pc_unix_size_fixes_use(PC_SHARED_SOURCES)
+endif()
+
 # Executable
 file(GLOB PC_PLATFORM_SOURCES CONFIGURE_DEPENDS "${SOURCE_ROOT}/platform/pc/*.cpp")
+
 add_executable(MinecraftPC ${PC_PLATFORM_SOURCES} ${PC_SHARED_SOURCES})
 target_compile_options(MinecraftPC PRIVATE ${PC_HOOK_FLAG})
 target_link_libraries(MinecraftPC PRIVATE SDL3::SDL3 SDL3_image::SDL3_image)
@@ -491,9 +541,9 @@ target_link_options(
     -Wl,--error-limit=0
 )
 
+target_sources(MinecraftPC PRIVATE "${SOURCE_ROOT}/vendor/dlmalloc.cpp")
 # Windows
 if(WIN32)
-    target_sources(MinecraftPC PRIVATE "${SOURCE_ROOT}/vendor/dlmalloc.cpp")
     enable_language(RC)
 
     if(PC_64BIT)
@@ -555,8 +605,18 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E create_symlink MinecraftPC.exe Minecraft.Client.exe
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
-else()
-    target_link_libraries(MinecraftPC PRIVATE pthread)
+# Linux/BSD
+elseif(UNIX AND NOT APPLE)
+    set(PC_USE_LIBC_ALLOCATOR ON)
+    set_source_files_properties(
+        "${SOURCE_ROOT}/vendor/dlmalloc.cpp"
+        PROPERTIES
+            LANGUAGE C
+            COMPILE_OPTIONS "-x;c;-w"
+            COMPILE_DEFINITIONS "MSPACES=1;PC_USE_LIBC_ALLOCATOR=1;HAVE_MMAP=1")
+    set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+    target_link_options(MinecraftPC PRIVATE -no-pie -Wl,--image-base=0x10000000)
+    target_link_libraries(MinecraftPC PRIVATE pthread dl m)
 endif()
 
 if(WIN32 AND PC_64BIT)

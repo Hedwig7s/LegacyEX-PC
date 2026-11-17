@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "platform/pc/PcFunctionHooks.hpp"
 
 #include "platform/pc/PcNativeMods.hpp"
@@ -7,7 +8,6 @@
 #include <map>
 #include <string>
 
-#ifdef _WIN32
 #include <windows.h>
 
 namespace
@@ -143,14 +143,6 @@ int PcHookFunction(const char* name, void* replacement, void** original)
            chained ? " (on top of an earlier hook)" : "");
     fflush(stdout);
     return 1;
-}
-
-#else
-
-int PcHookFunction(const char* name, void*, void**)
-{
-    printf("[pc] native: could not hook \"%s\": native mods need the Windows build\n", name != 0 ? name : "");
-    return 0;
 }
 
 #endif
